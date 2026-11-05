@@ -8,7 +8,7 @@ A lightweight, 64-bit VST3 plugin that routes audio from a low-latency ASIO DAW 
 
 This plugin was developed with heavy assistance from artificial intelligence (large language models) for architectural design, C++ code generation, and debugging. 
 
-While the source code has been reviewed, tested, and built strictly around standard real-time audio practices (lock-free buffers, isolated worker threads, and memory-safe resamplers), it is open-source software provided as-is.
+While the source code has been reviewed, tested, and built strictly around standard real-time audio practices (lock-free buffers, isolated worker threads, and memory-safe resamplers), it is open-source software provided as-is. But feel free to let me know of any bugs you might encounter!
 
 ---
 
@@ -65,10 +65,10 @@ By sending this audio to an unused hardware output—such as the built-in speake
 ## Installation
 
 1. Download the latest `WASAPI Streamer.zip` from the **Releases** tab.
-2. Extract the `WASAPI Streamer.vst3` bundle.
-3. Copy it into your system VST3 directory:
+2. Extract the `WASAPI Streamer.vst3` archive.
+3. Copy it into your system VST3 directory: Default is
    `C:\Program Files\Common Files\VST3\`
-4. Rescan plugins inside your DAW.
+4. Re-open your DAW, or re-scan plugins inside your DAW.
 
 ---
 
@@ -84,9 +84,9 @@ By sending this audio to an unused hardware output—such as the built-in speake
 
 ## Building from Source
 
-* Requires **Visual Studio 2022 / 2026** with the **Desktop development with C++** workload installed.
-* Requires **JUCE 8** (or Projucer).
-* Open `WASAPI Streamer.jucer`, select the Visual Studio exporter, and compile under the **Release | x64** configuration.
+* Requires **Visual Studio 2026** with the **Desktop development with C++** workload installed.
+* Requires **JUCE 9** (or Projucer).
+* Open `WASAPI Streamer.jucer` in Projucer, select the Visual Studio exporter, and compile under the **Release | x64** configuration.
 
 ---
 
