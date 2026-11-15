@@ -6,7 +6,7 @@
 #include "WasapiOutput.h"
 
 class WASAPIStreamerAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                           public juce::Timer
+    public juce::Timer
 {
 public:
     WASAPIStreamerAudioProcessorEditor(WASAPIStreamerAudioProcessor&);
@@ -18,10 +18,15 @@ public:
 
 private:
     void updateButtonState();
+    void setAboutVisible(bool shouldShow);
 
     WASAPIStreamerAudioProcessor& audioProcessor;
 
     juce::Label titleLabel;
+    juce::Label versionLabel;
+    juce::TextButton aboutButton;
+
+    // Main controls
     juce::Label statusLabel;
     juce::ComboBox deviceSelector;
 
@@ -33,6 +38,11 @@ private:
 
     juce::TextButton toggleButton;
 
+    // About view controls
+    juce::Label aboutInfoLabel;
+    juce::HyperlinkButton githubLink;
+
+    bool showingAbout = false;
     std::vector<WasapiOutput::DeviceInfo> deviceList;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WASAPIStreamerAudioProcessorEditor)

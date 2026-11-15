@@ -2,14 +2,31 @@
 #include "PluginEditor.h"
 
 WASAPIStreamerAudioProcessorEditor::WASAPIStreamerAudioProcessorEditor(WASAPIStreamerAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p)
+    : AudioProcessorEditor(&p),
+    audioProcessor(p),
+    githubLink("GitHub Repository", juce::URL("https://github.com/stephmouse/WASAPI-Streamer"))
 {
-    // Title
+    // Header: Version (left), Title (center), About button (right)
+    addAndMakeVisible(versionLabel);
+    versionLabel.setText("v" JucePlugin_VersionString, juce::dontSendNotification);
+    versionLabel.setFont(juce::FontOptions(11.5f, juce::Font::plain));
+    versionLabel.setJustificationType(juce::Justification::centredLeft);
+    versionLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
+
     addAndMakeVisible(titleLabel);
-    titleLabel.setText("WASAPI Streamer", juce::dontSendNotification);
+    titleLabel.setText(JucePlugin_Name, juce::dontSendNotification);
     titleLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
     titleLabel.setJustificationType(juce::Justification::centred);
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+
+    addAndMakeVisible(aboutButton);
+    aboutButton.setButtonText("About");
+    aboutButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4f545c));
+    aboutButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    aboutButton.onClick = [this]()
+        {
+            setAboutVisible(!showingAbout);
+        };
 
     // Device Dropdown
     addAndMakeVisible(deviceSelector);
@@ -44,9 +61,9 @@ WASAPIStreamerAudioProcessorEditor::WASAPIStreamerAudioProcessorEditor(WASAPIStr
     bufferSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 65, 20);
 
     bufferSlider.onValueChange = [this]()
-    {
-        audioProcessor.wasapiOutput.setTargetLatencyMs((int)bufferSlider.getValue());
-    };
+        {
+            audioProcessor.wasapiOutput.setTargetLatencyMs((int)bufferSlider.getValue());
+        };
 
     // Output Volume Slider (-60 dB to +6 dB)
     addAndMakeVisible(volumeLabel);
@@ -65,56 +82,72 @@ WASAPIStreamerAudioProcessorEditor::WASAPIStreamerAudioProcessorEditor(WASAPIStr
     volumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 65, 20);
 
     volumeSlider.onValueChange = [this]()
-    {
-        float dB = (float)volumeSlider.getValue();
-        float linearGain = (dB <= -59.5f) ? 0.0f : juce::Decibels::decibelsToGain(dB);
-        audioProcessor.wasapiOutput.setVolumeGain(linearGain);
-    };
+        {
+            float dB = (float)volumeSlider.getValue();
+            float linearGain = (dB <= -59.5f) ? 0.0f : juce::Decibels::decibelsToGain(dB);
+            audioProcessor.wasapiOutput.setVolumeGain(linearGain);
+        };
 
     // START / STOP Toggle Button
     addAndMakeVisible(toggleButton);
     toggleButton.onClick = [this]()
-    {
-        if (audioProcessor.wasapiOutput.isRunning())
         {
-            audioProcessor.streamShouldBeActive.store(false);
-            audioProcessor.wasapiOutput.stop();
-        }
-        else
+            if (audioProcessor.wasapiOutput.isRunning())
+            {
+                audioProcessor.streamShouldBeActive.store(false);
+                audioProcessor.wasapiOutput.stop();
+            }
+            else
+            {
+                int selectedIndex = deviceSelector.getSelectedId() - 1;
+                if (selectedIndex >= 0 && selectedIndex < (int)deviceList.size())
+                {
+                    audioProcessor.streamShouldBeActive.store(true);
+                    audioProcessor.wasapiOutput.start(deviceList[selectedIndex].id);
+                }
+            }
+            updateButtonState();
+        };
+
+    deviceSelector.onChange = [this]()
         {
             int selectedIndex = deviceSelector.getSelectedId() - 1;
             if (selectedIndex >= 0 && selectedIndex < (int)deviceList.size())
             {
-                audioProcessor.streamShouldBeActive.store(true);
-                audioProcessor.wasapiOutput.start(deviceList[selectedIndex].id);
+                audioProcessor.wasapiOutput.setSelectedDeviceId(deviceList[selectedIndex].id);
+                if (audioProcessor.wasapiOutput.isRunning() || audioProcessor.streamShouldBeActive.load())
+                {
+                    audioProcessor.streamShouldBeActive.store(true);
+                    audioProcessor.wasapiOutput.start(deviceList[selectedIndex].id);
+                }
             }
-        }
-        updateButtonState();
-    };
-
-    deviceSelector.onChange = [this]()
-    {
-        int selectedIndex = deviceSelector.getSelectedId() - 1;
-        if (selectedIndex >= 0 && selectedIndex < (int)deviceList.size())
-        {
-            audioProcessor.wasapiOutput.setSelectedDeviceId(deviceList[selectedIndex].id);
-            if (audioProcessor.wasapiOutput.isRunning() || audioProcessor.streamShouldBeActive.load())
-            {
-                audioProcessor.streamShouldBeActive.store(true);
-                audioProcessor.wasapiOutput.start(deviceList[selectedIndex].id);
-            }
-        }
-        updateButtonState();
-    };
+            updateButtonState();
+        };
 
     // Status / Tip Label
     addAndMakeVisible(statusLabel);
     statusLabel.setFont(juce::FontOptions(12.0f, juce::Font::plain));
     statusLabel.setJustificationType(juce::Justification::centred);
 
-    updateButtonState();
+    // About View (hidden initially)
+    addChildComponent(aboutInfoLabel);
+    juce::String aboutText;
+    aboutText << JucePlugin_Name << " v" << JucePlugin_VersionString << "\n"
+        << "By " << JucePlugin_Manufacturer << "\n\n"
+        << "Routes ASIO DAW audio to Windows WASAPI Shared Mode\n"
+        << "for Discord, OBS, and desktop capture.\n\n"
+        << "License: AGPL-3.0 (Built with JUCE)\n"
+        << "Developed with AI assistance.";
+    aboutInfoLabel.setText(aboutText, juce::dontSendNotification);
+    aboutInfoLabel.setFont(juce::FontOptions(12.5f, juce::Font::plain));
+    aboutInfoLabel.setJustificationType(juce::Justification::centred);
+    aboutInfoLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
 
-    // Heartbeat timer: check state 5 times per second
+    addChildComponent(githubLink);
+    githubLink.setFont(juce::FontOptions(13.0f, juce::Font::bold), false);
+    githubLink.setColour(juce::HyperlinkButton::textColourId, juce::Colour(0xff7289da));
+
+    updateButtonState();
     startTimerHz(5);
 
     setSize(400, 275);
@@ -123,6 +156,23 @@ WASAPIStreamerAudioProcessorEditor::WASAPIStreamerAudioProcessorEditor(WASAPIStr
 WASAPIStreamerAudioProcessorEditor::~WASAPIStreamerAudioProcessorEditor()
 {
     stopTimer();
+}
+
+void WASAPIStreamerAudioProcessorEditor::setAboutVisible(bool shouldShow)
+{
+    showingAbout = shouldShow;
+    aboutButton.setButtonText(showingAbout ? "Back" : "About");
+
+    deviceSelector.setVisible(!showingAbout);
+    bufferLabel.setVisible(!showingAbout);
+    bufferSlider.setVisible(!showingAbout);
+    volumeLabel.setVisible(!showingAbout);
+    volumeSlider.setVisible(!showingAbout);
+    toggleButton.setVisible(!showingAbout);
+    statusLabel.setVisible(!showingAbout);
+
+    aboutInfoLabel.setVisible(showingAbout);
+    githubLink.setVisible(showingAbout);
 }
 
 void WASAPIStreamerAudioProcessorEditor::timerCallback()
@@ -170,24 +220,36 @@ void WASAPIStreamerAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(15);
 
-    titleLabel.setBounds(area.removeFromTop(24));
+    auto headerRow = area.removeFromTop(24);
+    versionLabel.setBounds(headerRow.removeFromLeft(60));
+    aboutButton.setBounds(headerRow.removeFromRight(60));
+    titleLabel.setBounds(headerRow);
+
     area.removeFromTop(10);
 
-    deviceSelector.setBounds(area.removeFromTop(30));
-    area.removeFromTop(12);
+    // Main controls layout
+    auto mainArea = area;
+    deviceSelector.setBounds(mainArea.removeFromTop(30));
+    mainArea.removeFromTop(12);
 
-    auto bufferRow = area.removeFromTop(24);
+    auto bufferRow = mainArea.removeFromTop(24);
     bufferLabel.setBounds(bufferRow.removeFromLeft(110));
     bufferSlider.setBounds(bufferRow);
-    area.removeFromTop(8);
+    mainArea.removeFromTop(8);
 
-    auto volumeRow = area.removeFromTop(24);
+    auto volumeRow = mainArea.removeFromTop(24);
     volumeLabel.setBounds(volumeRow.removeFromLeft(110));
     volumeSlider.setBounds(volumeRow);
-    area.removeFromTop(14);
+    mainArea.removeFromTop(14);
 
-    toggleButton.setBounds(area.removeFromTop(32));
-    area.removeFromTop(10);
+    toggleButton.setBounds(mainArea.removeFromTop(32));
+    mainArea.removeFromTop(10);
 
-    statusLabel.setBounds(area.removeFromTop(36));
+    statusLabel.setBounds(mainArea.removeFromTop(36));
+
+    // About screen layout (shares the same body area)
+    auto aboutArea = area;
+    aboutInfoLabel.setBounds(aboutArea.removeFromTop(165));
+    aboutArea.removeFromTop(6);
+    githubLink.setBounds(aboutArea.removeFromTop(24).withSizeKeepingCentre(160, 24));
 }
